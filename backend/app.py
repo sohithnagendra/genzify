@@ -15,9 +15,11 @@ app.config["MAX_CONTENT_LENGTH"] = 32 * 1024
 # memory:// is suitable only for local development; it is not shared across workers.
 app_env = os.getenv("APP_ENV", "development").strip().lower()
 redis_url = os.getenv("REDIS_URL") or os.getenv("RATELIMIT_STORAGE_URI")
-if app_env == "production" and not redis_url:
+if app_env == "production" and not (
+    redis_url and redis_url.startswith(("redis://", "rediss://"))
+):
     raise RuntimeError(
-        "Production requires REDIS_URL or RATELIMIT_STORAGE_URI for shared rate limiting."
+        "Production requires a redis:// or rediss:// URL for shared rate limiting."
     )
 rate_limit_storage = redis_url or "memory://"
 
