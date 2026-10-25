@@ -8,6 +8,7 @@ The NVIDIA client is mocked; no real provider requests or credits are used.
 import importlib
 import os
 import sys
+from itertools import count
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -20,12 +21,16 @@ if str(BACKEND_DIR) not in sys.path:
 
 os.environ.setdefault("NVIDIA_API_KEY", "test-only-not-a-real-key")
 app_module = importlib.import_module("app")
+_client_ip_counter = count(1)
 
 
 @pytest.fixture
 def client():
     app_module.app.config.update(TESTING=True)
-    return app_module.app.test_client()
+    test_client = app_module.app.test_client()
+    # Isolate each test from the per-IP limiter state created by other tests.
+    test_client.environ_base["REMOTE_ADDR"] = f"192.0.2.{next(_client_ip_counter)}"
+    return test_client
 
 
 def test_rejects_non_object_json(client):
@@ -133,3 +138,16 @@ def test_oversized_request_body_returns_json_error(client):
     )
     assert response.status_code == 413
     assert response.is_json
+
+
+def test_conversion_endpoint_rate_limit_is_enforced(client):
+    for _ in range(10):
+        response = client.post(
+            "/api/convert", data="not-json", content_type="text/plain"
+        )
+        assert response.status_code == 415
+
+    response = client.post(
+        "/api/convert", data="not-json", content_type="text/plain"
+    )
+    assert response.status_code == 429
