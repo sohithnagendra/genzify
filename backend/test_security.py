@@ -151,3 +151,27 @@ def test_conversion_endpoint_rate_limit_is_enforced(client):
         "/api/convert", data="not-json", content_type="text/plain"
     )
     assert response.status_code == 429
+
+
+def test_cors_allows_the_configured_frontend_origin(client):
+    response = client.options(
+        "/api/convert",
+        headers={
+            "Origin": "https://genzconverterr.netlify.app",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+    assert response.headers.get("Access-Control-Allow-Origin") == (
+        "https://genzconverterr.netlify.app"
+    )
+
+
+def test_cors_does_not_allow_an_untrusted_origin(client):
+    response = client.options(
+        "/api/convert",
+        headers={
+            "Origin": "https://untrusted.example",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+    assert "Access-Control-Allow-Origin" not in response.headers
