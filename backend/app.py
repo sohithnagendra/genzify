@@ -23,7 +23,7 @@ rate_limit_storage = redis_url or "memory://"
 
 Talisman(
     app,
-    force_https=True,
+    force_https=(app_env == "production"),
     strict_transport_security=True,
     strict_transport_security_max_age=31536000,
     content_security_policy={
